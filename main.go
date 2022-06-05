@@ -22,6 +22,13 @@ type Context struct {
 	}
 }
 
+func (ctx Context) String() string {
+	return fmt.Sprintf(
+		"Literals: %v\nRules: %v\n",
+		ctx.Literals, ctx.Rules,
+	)
+}
+
 type Ruler interface {
 	Build(ctx Context) Context
 }
@@ -74,11 +81,11 @@ func (c* Concatenation) Build(ctx Context) Context {
 }
 
 type Grammar struct {
-	ctx Context
+	Ctx Context
 }
 
 func (g *Grammar) Append(rule Ruler) {
-	g.ctx = rule.Build(g.ctx)
+	g.Ctx = rule.Build(g.Ctx)
 }
 
 func (g *Grammar) Run(text string) bool {
@@ -86,11 +93,11 @@ func (g *Grammar) Run(text string) bool {
 	var textIndex = 0
 	var ok = false
 
-	for ruleIndex < len(g.ctx.Rules) && textIndex < len(text) {
-		if RulerType(g.ctx.Rules[ruleIndex]) == CharacterType {
+	for ruleIndex < len(g.Ctx.Rules) && textIndex < len(text) {
+		if RulerType(g.Ctx.Rules[ruleIndex]) == CharacterType {
 			var (
-				literalIndex = g.ctx.Rules[ruleIndex + 1]
-				literal = g.ctx.Literals[literalIndex]
+				literalIndex = g.Ctx.Rules[ruleIndex + 1]
+				literal = g.Ctx.Literals[literalIndex]
 			)
 
 			if strings.ContainsAny(string(text[textIndex]), literal) {
@@ -101,11 +108,11 @@ func (g *Grammar) Run(text string) bool {
 				ruleIndex += 2
 				ok = false
 			}
-		} else if RulerType(g.ctx.Rules[ruleIndex]) == IfSuccessType {
+		} else if RulerType(g.Ctx.Rules[ruleIndex]) == IfSuccessType {
 			if ok {
-				ruleIndex = g.ctx.Rules[ruleIndex + 1]
+				ruleIndex = g.Ctx.Rules[ruleIndex + 1]
 			} else {
-				ruleIndex = g.ctx.Rules[ruleIndex + 2]
+				ruleIndex = g.Ctx.Rules[ruleIndex + 2]
 			}
 		}
 	}
@@ -137,10 +144,32 @@ func TestConcatenation() bool {
 	return g.Run(text)
 }
 
+func TestConcatenationOfConcatenation() bool {
+	var text = "abc"
+	var g Grammar
+
+	g.Append(
+		NewConcatenation(
+			NewCharacter("asd"),
+			NewConcatenation(
+				NewCharacter("nbm"),
+				NewCharacter("cvb"),
+			),
+		),
+	)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	return result
+}
+
 func main() {
 	var tests = []func()bool{
 		TestCharacter,
 		TestConcatenation,
+		TestConcatenationOfConcatenation,
 	}
 
 	for n, test := range tests {

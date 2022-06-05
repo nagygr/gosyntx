@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-type RuleType int
+type RulerType int
 
 const (
-	CharacterType RuleType = iota
+	CharacterType RulerType = iota
 	IfSuccessType
 )
 
-type Rule interface {
+type Ruler interface {
 	Build(rules []int, literals []string) ([]int, []string)
 }
 
@@ -20,7 +20,7 @@ type Character struct {
 	charSet string
 }
 
-var _ Rule = (*Character)(nil)
+var _ Ruler = (*Character)(nil)
 
 func NewCharacter(charSet string) *Character {
 	return &Character {
@@ -37,26 +37,26 @@ func (c *Character) Build(rules []int, literals []string) ([]int, []string) {
 }
 
 type Concatenation struct {
-	leftRule Rule
-	rightRule Rule
+	leftRuler Ruler
+	rightRuler Ruler
 }
 
-var _ Rule = (*Concatenation)(nil)
+var _ Ruler = (*Concatenation)(nil)
 
-func NewConcatenation(leftRule Rule, rightRule Rule) *Concatenation {
+func NewConcatenation(leftRuler Ruler, rightRuler Ruler) *Concatenation {
 	return &Concatenation{
-		leftRule: leftRule,
-		rightRule: rightRule,
+		leftRuler: leftRuler,
+		rightRuler: rightRuler,
 	}
 }
 
 func (c* Concatenation) Build(rules []int, literals []string) ([]int, []string) {
-	rules, literals = c.leftRule.Build(rules, literals)
+	rules, literals = c.leftRuler.Build(rules, literals)
 	rules = append(rules, int(IfSuccessType))
 	truePos := len(rules)
 	rules = append(rules, truePos + 2)
 	rules = append(rules, 0)
-	rules, literals = c.rightRule.Build(rules, literals)
+	rules, literals = c.rightRuler.Build(rules, literals)
 	afterRightPos := len(rules)
 	rules[truePos + 1] = afterRightPos
 
@@ -68,7 +68,7 @@ type Grammar struct {
 	literals []string
 }
 
-func (g *Grammar) Append(rule Rule) {
+func (g *Grammar) Append(rule Ruler) {
 	g.rules, g.literals = rule.Build(g.rules, g.literals)
 }
 
@@ -78,7 +78,7 @@ func (g *Grammar) Run(text string) bool {
 	var ok = false
 
 	for ruleIndex < len(g.rules) && textIndex < len(text) {
-		if RuleType(g.rules[ruleIndex]) == CharacterType {
+		if RulerType(g.rules[ruleIndex]) == CharacterType {
 			var (
 				literalIndex = g.rules[ruleIndex + 1]
 				literal = g.literals[literalIndex]
@@ -92,7 +92,7 @@ func (g *Grammar) Run(text string) bool {
 				ruleIndex += 2
 				ok = false
 			}
-		} else if RuleType(g.rules[ruleIndex]) == IfSuccessType {
+		} else if RulerType(g.rules[ruleIndex]) == IfSuccessType {
 			if ok {
 				ruleIndex = g.rules[ruleIndex + 1]
 			} else {
@@ -106,7 +106,7 @@ func (g *Grammar) Run(text string) bool {
 
 func TestCharacter() bool {
 	var text = "f"
-	var r1 Rule = NewCharacter("abc")
+	var r1 Ruler = NewCharacter("abc")
 	var g Grammar
 
 	g.Append(r1)

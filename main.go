@@ -12,8 +12,18 @@ const (
 	IfSuccessType
 )
 
+type Context struct {
+	Rules []int
+	Literals []string
+	RuleJumpTable map[string]int
+	FillTable []struct{
+		ruleName string
+		position int
+	}
+}
+
 type Ruler interface {
-	Build(rules []int, literals []string) ([]int, []string)
+	Build(ctx Context) Context
 }
 
 type Character struct {
@@ -28,12 +38,12 @@ func NewCharacter(charSet string) *Character {
 	}
 }
 
-func (c *Character) Build(rules []int, literals []string) ([]int, []string) {
-	literals = append(literals, c.charSet)
-	rules = append(rules, int(CharacterType))
-	rules = append(rules, len(literals) - 1)
+func (c *Character) Build(ctx Context) Context {
+	ctx.Literals = append(ctx.Literals, c.charSet)
+	ctx.Rules = append(ctx.Rules, int(CharacterType))
+	ctx.Rules = append(ctx.Rules, len(ctx.Literals) - 1)
 
-	return rules, literals
+	return ctx
 }
 
 type Concatenation struct {
@@ -50,26 +60,25 @@ func NewConcatenation(leftRuler Ruler, rightRuler Ruler) *Concatenation {
 	}
 }
 
-func (c* Concatenation) Build(rules []int, literals []string) ([]int, []string) {
-	rules, literals = c.leftRuler.Build(rules, literals)
-	rules = append(rules, int(IfSuccessType))
-	truePos := len(rules)
-	rules = append(rules, truePos + 2)
-	rules = append(rules, 0)
-	rules, literals = c.rightRuler.Build(rules, literals)
-	afterRightPos := len(rules)
-	rules[truePos + 1] = afterRightPos
+func (c* Concatenation) Build(ctx Context) Context {
+	ctx = c.leftRuler.Build(ctx)
+	ctx.Rules = append(ctx.Rules, int(IfSuccessType))
+	truePos := len(ctx.Rules)
+	ctx.Rules = append(ctx.Rules, truePos + 2)
+	ctx.Rules = append(ctx.Rules, 0)
+	ctx = c.rightRuler.Build(ctx)
+	afterRightPos := len(ctx.Rules)
+	ctx.Rules[truePos + 1] = afterRightPos
 
-	return rules, literals
+	return ctx
 }
 
 type Grammar struct {
-	rules []int
-	literals []string
+	ctx Context
 }
 
 func (g *Grammar) Append(rule Ruler) {
-	g.rules, g.literals = rule.Build(g.rules, g.literals)
+	g.ctx = rule.Build(g.ctx)
 }
 
 func (g *Grammar) Run(text string) bool {
@@ -77,11 +86,11 @@ func (g *Grammar) Run(text string) bool {
 	var textIndex = 0
 	var ok = false
 
-	for ruleIndex < len(g.rules) && textIndex < len(text) {
-		if RulerType(g.rules[ruleIndex]) == CharacterType {
+	for ruleIndex < len(g.ctx.Rules) && textIndex < len(text) {
+		if RulerType(g.ctx.Rules[ruleIndex]) == CharacterType {
 			var (
-				literalIndex = g.rules[ruleIndex + 1]
-				literal = g.literals[literalIndex]
+				literalIndex = g.ctx.Rules[ruleIndex + 1]
+				literal = g.ctx.Literals[literalIndex]
 			)
 
 			if strings.ContainsAny(string(text[textIndex]), literal) {
@@ -92,11 +101,11 @@ func (g *Grammar) Run(text string) bool {
 				ruleIndex += 2
 				ok = false
 			}
-		} else if RulerType(g.rules[ruleIndex]) == IfSuccessType {
+		} else if RulerType(g.ctx.Rules[ruleIndex]) == IfSuccessType {
 			if ok {
-				ruleIndex = g.rules[ruleIndex + 1]
+				ruleIndex = g.ctx.Rules[ruleIndex + 1]
 			} else {
-				ruleIndex = g.rules[ruleIndex + 2]
+				ruleIndex = g.ctx.Rules[ruleIndex + 2]
 			}
 		}
 	}
@@ -105,7 +114,7 @@ func (g *Grammar) Run(text string) bool {
 }
 
 func TestCharacter() bool {
-	var text = "f"
+	var text = "b"
 	var r1 Ruler = NewCharacter("abc")
 	var g Grammar
 

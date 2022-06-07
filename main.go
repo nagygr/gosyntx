@@ -369,12 +369,43 @@ func TestSimpleRule() bool {
 	return result
 }
 
+func TestComplexRule() bool {
+	var (
+		text  = "abc"
+		g     = NewGrammar()
+		rule1 = NewRule()
+		rule2 = NewRule()
+	)
+
+	g.Append(
+		rule1.Set(
+			NewConcatenation(
+				NewCharacter("asd"),
+				NewConcatenation(
+					NewDeref(rule2),
+					NewCharacter("xcv"),
+				),
+			),
+		),
+		rule2.Set(
+			NewCharacter("bnm"),
+		),
+	)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	return result
+}
+
 func main() {
 	var tests = []func() bool{
 		TestCharacter,
 		TestConcatenation,
 		TestConcatenationOfConcatenation,
 		TestSimpleRule,
+		TestComplexRule,
 	}
 
 	for n, test := range tests {

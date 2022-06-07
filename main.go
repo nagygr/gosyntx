@@ -17,14 +17,14 @@ const (
 )
 
 var (
-	CommandNames = []string {
+	CommandNames = []string{
 		"Character",
 		"IfSuccess",
 		"Call",
 		"Return",
 	}
 
-	ArgNums = []int {
+	ArgNums = []int{
 		1,
 		2,
 		1,
@@ -42,6 +42,7 @@ type Context struct {
 	Literals      []string
 	RuleJumpTable map[uint64]int
 	JumpStack     *Stack[int]
+	PositionStack *Stack[int]
 	FillTable     []RulePosition
 }
 
@@ -49,6 +50,7 @@ func NewContext() Context {
 	return Context{
 		RuleJumpTable: make(map[uint64]int),
 		JumpStack:     NewStack[int](),
+		PositionStack: NewStack[int](),
 	}
 }
 
@@ -235,7 +237,8 @@ func (g *Grammar) Run(text string) bool {
 
 	g.resolveFillTable()
 
-	for !endReached && ruleIndex < len(g.Ctx.Rules) && textIndex < len(text) {
+	for !endReached && ruleIndex < len(g.Ctx.Rules) {
+		fmt.Printf("Executing: %s\n", CommandNames[g.Ctx.Rules[ruleIndex]])
 		switch RulerType(g.Ctx.Rules[ruleIndex]) {
 		case CharacterType:
 			var (
@@ -243,14 +246,11 @@ func (g *Grammar) Run(text string) bool {
 				literal      = g.Ctx.Literals[literalIndex]
 			)
 
-			if strings.ContainsAny(string(text[textIndex]), literal) {
+			if ok = textIndex < len(text) && strings.ContainsAny(string(text[textIndex]), literal); ok {
 				textIndex++
-				ruleIndex += 2
-				ok = true
-			} else {
-				ruleIndex += 2
-				ok = false
 			}
+
+			ruleIndex += 2
 
 		case IfSuccessType:
 			if ok {
@@ -266,6 +266,13 @@ func (g *Grammar) Run(text string) bool {
 				endReached = true
 			}
 
+			fmt.Printf("Covered range: ")
+			var startPos int = 0
+			if pos, ok := g.Ctx.PositionStack.Pop(); ok {
+				startPos = pos
+			}
+			fmt.Printf("[%d:%d]\n", startPos, textIndex)
+
 		case CallType:
 			fmt.Printf(
 				"Current pos: %d, Jumping to: %d, Return pos: %d\n",
@@ -274,7 +281,13 @@ func (g *Grammar) Run(text string) bool {
 
 			ruleIndex = g.Ctx.Rules[ruleIndex+1]
 			g.Ctx.JumpStack.Push(ruleIndex + 2)
+			g.Ctx.PositionStack.Push(textIndex)
 		}
+
+		fmt.Printf(
+			"Status [ok: %t, ruleIndex: %d, textIndex: %d, endReached: %t]\n",
+			ok, ruleIndex, textIndex, endReached,
+		)
 	}
 
 	return ok
@@ -301,7 +314,11 @@ func TestConcatenation() bool {
 		),
 	)
 
-	return g.Run(text)
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	return result
 }
 
 func TestConcatenationOfConcatenation() bool {
@@ -327,8 +344,8 @@ func TestConcatenationOfConcatenation() bool {
 
 func TestSimpleRule() bool {
 	var (
-		text = "ab"
-		g    = NewGrammar()
+		text  = "ab"
+		g     = NewGrammar()
 		rule1 = NewRule()
 		rule2 = NewRule()
 	)

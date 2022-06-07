@@ -38,10 +38,17 @@ func NewContext() Context {
 }
 
 func (ctx Context) String() string {
-	return fmt.Sprintf(
-		"Literals: %v\nRules: %v\n",
-		ctx.Literals, ctx.Rules,
-	)
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "Literals: %v\nRules:\n\t[\n", ctx.Literals)
+
+	for i, v := range ctx.Rules {
+		fmt.Fprintf(&b, "\t\t%d: %d\n", i, v)
+	}
+
+	fmt.Fprintf(&b, "\t]\n")
+
+	return b.String()
 }
 
 type Ruler interface {

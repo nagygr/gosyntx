@@ -1,3 +1,3 @@
 # Go Syntx
 
-Lighting-fast parsing framework in Go.
+Lightning-fast parsing framework in Go.

@@ -12,16 +12,28 @@ type RulerType int
 const (
 	CharacterType RulerType = iota
 	IfSuccessType
+	CallType
 	ReturnType
+	EndType
 )
+
+type RulePosition struct {
+	ruleHash uint64
+	position int
+}
 
 type Context struct {
 	Rules         []int
 	Literals      []string
 	RuleJumpTable map[uint64]int
-	FillTable     []struct {
-		ruleHash uint64
-		position int
+	JumpStack     *Stack[int]
+	FillTable     []RulePosition
+}
+
+func NewContext() Context {
+	return Context{
+		RuleJumpTable: make(map[uint64]int),
+		JumpStack:     NewStack[int](),
 	}
 }
 
@@ -34,6 +46,19 @@ func (ctx Context) String() string {
 
 type Ruler interface {
 	Build(ctx Context) Context
+}
+
+type End int
+
+var _ Ruler = (*End)(nil)
+
+func NewEnd() *End {
+	return new(End)
+}
+
+func (e *End) Build(ctx Context) Context {
+	ctx.Rules = append(ctx.Rules, int(EndType))
+	return ctx
 }
 
 type Character struct {
@@ -99,8 +124,9 @@ func NewRule() *Rule {
 func (r *Rule) hash() uint64 {
 	r.hasher.Reset()
 	r.hasher.WriteString(
-		fmt.Sprintf("%v", r),
+		fmt.Sprintf("%p", r),
 	)
+	fmt.Printf("Returning hash: %p -> %d\n", r, r.hasher.Sum64())
 	return r.hasher.Sum64()
 }
 
@@ -119,6 +145,35 @@ func (r *Rule) Build(ctx Context) Context {
 	ctx = r.InnerRule.Build(ctx)
 	ctx.Rules = append(ctx.Rules, int(ReturnType))
 
+	fmt.Printf("Adding rule: %d\n", r.hash())
+
+	return ctx
+}
+
+type Deref struct {
+	RulePtr *Rule
+}
+
+var _ Ruler = (*Deref)(nil)
+
+func NewDeref(ptr *Rule) *Deref {
+	return &Deref{ptr}
+}
+
+func (d *Deref) Build(ctx Context) Context {
+	currentPos := len(ctx.Rules)
+	ctx.Rules = append(ctx.Rules, int(CallType))
+	ctx.Rules = append(ctx.Rules, 0)
+	ctx.FillTable = append(
+		ctx.FillTable,
+		RulePosition{
+			ruleHash: d.RulePtr.hash(),
+			position: currentPos + 1,
+		},
+	)
+
+	fmt.Printf("Appending rule to FillTable: %d\n", d.RulePtr.hash())
+
 	return ctx
 }
 
@@ -126,17 +181,42 @@ type Grammar struct {
 	Ctx Context
 }
 
+func NewGrammar() Grammar {
+	return Grammar{
+		Ctx: NewContext(),
+	}
+}
+
 func (g *Grammar) Append(rule Ruler) {
 	g.Ctx = rule.Build(g.Ctx)
+}
+
+func (g *Grammar) resolveFillTable() {
+	for _, fillElement := range g.Ctx.FillTable {
+		fmt.Printf("Looking for Rule: %d\n", fillElement.ruleHash)
+		g.Ctx.Rules[fillElement.position] = g.Ctx.RuleJumpTable[fillElement.ruleHash]
+		fmt.Printf(
+			"Adding values to jump table: [%d]: %d (hash: %d)\n",
+			fillElement.position,
+			g.Ctx.RuleJumpTable[fillElement.ruleHash],
+			fillElement.ruleHash,
+		)
+	}
+
+	g.Ctx.FillTable = g.Ctx.FillTable[:0]
 }
 
 func (g *Grammar) Run(text string) bool {
 	var ruleIndex = 0
 	var textIndex = 0
 	var ok = false
+	var endReached = false
 
-	for ruleIndex < len(g.Ctx.Rules) && textIndex < len(text) {
-		if RulerType(g.Ctx.Rules[ruleIndex]) == CharacterType {
+	g.resolveFillTable()
+
+	for !endReached && ruleIndex < len(g.Ctx.Rules) && textIndex < len(text) {
+		switch RulerType(g.Ctx.Rules[ruleIndex]) {
+		case CharacterType:
 			var (
 				literalIndex = g.Ctx.Rules[ruleIndex+1]
 				literal      = g.Ctx.Literals[literalIndex]
@@ -150,12 +230,32 @@ func (g *Grammar) Run(text string) bool {
 				ruleIndex += 2
 				ok = false
 			}
-		} else if RulerType(g.Ctx.Rules[ruleIndex]) == IfSuccessType {
+
+		case IfSuccessType:
 			if ok {
 				ruleIndex = g.Ctx.Rules[ruleIndex+1]
 			} else {
 				ruleIndex = g.Ctx.Rules[ruleIndex+2]
 			}
+
+		case ReturnType:
+			if value, ok := g.Ctx.JumpStack.Pop(); ok {
+				ruleIndex = value
+			} else {
+				ruleIndex++
+			}
+
+		case CallType:
+			fmt.Printf(
+				"Current pos: %d, Jumping to: %d, Return pos: %d\n",
+				ruleIndex, g.Ctx.Rules[ruleIndex+1], ruleIndex+2,
+			)
+
+			ruleIndex = g.Ctx.Rules[ruleIndex+1]
+			g.Ctx.JumpStack.Push(ruleIndex + 2)
+
+		case EndType:
+			endReached = true
 		}
 	}
 
@@ -165,7 +265,7 @@ func (g *Grammar) Run(text string) bool {
 func TestCharacter() bool {
 	var text = "b"
 	var r1 Ruler = NewCharacter("abc")
-	var g Grammar
+	var g = NewGrammar()
 
 	g.Append(r1)
 
@@ -174,7 +274,7 @@ func TestCharacter() bool {
 
 func TestConcatenation() bool {
 	var text = "ab"
-	var g Grammar
+	var g = NewGrammar()
 
 	g.Append(
 		NewConcatenation(
@@ -188,7 +288,7 @@ func TestConcatenation() bool {
 
 func TestConcatenationOfConcatenation() bool {
 	var text = "abc"
-	var g Grammar
+	var g = NewGrammar()
 
 	g.Append(
 		NewConcatenation(
@@ -207,11 +307,42 @@ func TestConcatenationOfConcatenation() bool {
 	return result
 }
 
+func TestSimpleRule() bool {
+	var (
+		text = "ab"
+		g    = NewGrammar()
+		rule = NewRule()
+	)
+
+	rule.Set(
+		NewCharacter("bnm"),
+	)
+
+	g.Append(
+		NewConcatenation(
+			NewCharacter("asd"),
+			NewConcatenation(
+				NewDeref(rule),
+				NewEnd(),
+			),
+		),
+	)
+
+	g.Append(rule)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	return result
+}
+
 func main() {
 	var tests = []func() bool{
 		TestCharacter,
 		TestConcatenation,
 		TestConcatenationOfConcatenation,
+		TestSimpleRule,
 	}
 
 	for n, test := range tests {

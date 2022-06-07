@@ -30,3 +30,7 @@ func (d *Deref) Build(ctx Context) Context {
 
 	return ctx
 }
+
+func (d *Deref) Cat(right Ruler) Ruler {
+	return NewConcatenation(d, right)
+}

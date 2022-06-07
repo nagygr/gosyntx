@@ -26,3 +26,7 @@ func (c *Concatenation) Build(ctx Context) Context {
 
 	return ctx
 }
+
+func (c *Concatenation) Cat(right Ruler) Ruler {
+	return NewConcatenation(c, right)
+}

@@ -48,3 +48,7 @@ func (r *Rule) Build(ctx Context) Context {
 
 	return ctx
 }
+
+func (r *Rule) Cat(right Ruler) Ruler {
+	return NewConcatenation(r, right)
+}

@@ -65,3 +65,31 @@ func TestComplexRule(t *testing.T) {
 		t.Errorf("Failed to parse %s", text)
 	}
 }
+
+func TestSimpleRuleWithCat(t *testing.T) {
+	var (
+		text  = "ab"
+		g     = NewGrammar()
+		rule1 = NewRule()
+		rule2 = NewRule()
+	)
+
+	g.Append(
+		rule1.Set(
+			NewCharacter("asd").Cat(
+				NewDeref(rule2),
+			),
+		),
+		rule2.Set(
+			NewCharacter("bnm"),
+		),
+	)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	if !result {
+		t.Errorf("Failed to parse %s", text)
+	}
+}

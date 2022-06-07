@@ -19,3 +19,7 @@ func (c *Character) Build(ctx Context) Context {
 
 	return ctx
 }
+
+func (c *Character) Cat(right Ruler) Ruler {
+	return NewConcatenation(c, right)
+}

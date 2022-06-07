@@ -14,7 +14,22 @@ const (
 	IfSuccessType
 	CallType
 	ReturnType
-	EndType
+)
+
+var (
+	CommandNames = []string {
+		"Character",
+		"IfSuccess",
+		"Call",
+		"Return",
+	}
+
+	ArgNums = []int {
+		1,
+		2,
+		1,
+		0,
+	}
 )
 
 type RulePosition struct {
@@ -42,8 +57,17 @@ func (ctx Context) String() string {
 
 	fmt.Fprintf(&b, "Literals: %v\nRules:\n\t[\n", ctx.Literals)
 
+	var nextCommandIndex int = 0
+
 	for i, v := range ctx.Rules {
-		fmt.Fprintf(&b, "\t\t%d: %d\n", i, v)
+		fmt.Fprintf(&b, "\t\t%3d: %3d", i, v)
+
+		if i == nextCommandIndex && 0 <= v && v < len(CommandNames) {
+			fmt.Fprintf(&b, " (%s)", CommandNames[v])
+			nextCommandIndex += ArgNums[v] + 1
+		}
+
+		fmt.Fprintf(&b, "\n")
 	}
 
 	fmt.Fprintf(&b, "\t]\n")
@@ -53,19 +77,6 @@ func (ctx Context) String() string {
 
 type Ruler interface {
 	Build(ctx Context) Context
-}
-
-type End int
-
-var _ Ruler = (*End)(nil)
-
-func NewEnd() *End {
-	return new(End)
-}
-
-func (e *End) Build(ctx Context) Context {
-	ctx.Rules = append(ctx.Rules, int(EndType))
-	return ctx
 }
 
 type Character struct {
@@ -137,8 +148,9 @@ func (r *Rule) hash() uint64 {
 	return r.hasher.Sum64()
 }
 
-func (r *Rule) Set(rule Ruler) {
+func (r *Rule) Set(rule Ruler) *Rule {
 	r.InnerRule = rule
+	return r
 }
 
 func (r *Rule) Build(ctx Context) Context {
@@ -194,8 +206,10 @@ func NewGrammar() Grammar {
 	}
 }
 
-func (g *Grammar) Append(rule Ruler) {
-	g.Ctx = rule.Build(g.Ctx)
+func (g *Grammar) Append(rules ...Ruler) {
+	for _, rule := range rules {
+		g.Ctx = rule.Build(g.Ctx)
+	}
 }
 
 func (g *Grammar) resolveFillTable() {
@@ -249,7 +263,7 @@ func (g *Grammar) Run(text string) bool {
 			if value, ok := g.Ctx.JumpStack.Pop(); ok {
 				ruleIndex = value
 			} else {
-				ruleIndex++
+				endReached = true
 			}
 
 		case CallType:
@@ -260,9 +274,6 @@ func (g *Grammar) Run(text string) bool {
 
 			ruleIndex = g.Ctx.Rules[ruleIndex+1]
 			g.Ctx.JumpStack.Push(ruleIndex + 2)
-
-		case EndType:
-			endReached = true
 		}
 	}
 
@@ -318,24 +329,21 @@ func TestSimpleRule() bool {
 	var (
 		text = "ab"
 		g    = NewGrammar()
-		rule = NewRule()
-	)
-
-	rule.Set(
-		NewCharacter("bnm"),
+		rule1 = NewRule()
+		rule2 = NewRule()
 	)
 
 	g.Append(
-		NewConcatenation(
-			NewCharacter("asd"),
+		rule1.Set(
 			NewConcatenation(
-				NewDeref(rule),
-				NewEnd(),
+				NewCharacter("asd"),
+				NewDeref(rule2),
 			),
 		),
+		rule2.Set(
+			NewCharacter("bnm"),
+		),
 	)
-
-	g.Append(rule)
 
 	result := g.Run(text)
 

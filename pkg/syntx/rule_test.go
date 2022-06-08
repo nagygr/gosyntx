@@ -76,12 +76,11 @@ func TestSimpleRuleWithCat(t *testing.T) {
 
 	g.Append(
 		rule1.Set(
-			NewCharacter("asd").Cat(
-				NewDeref(rule2),
-			),
+			Char("asd").
+				Cat(Der(rule2)),
 		),
 		rule2.Set(
-			NewCharacter("bnm"),
+			Char("bnm"),
 		),
 	)
 

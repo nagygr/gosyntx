@@ -12,6 +12,10 @@ func NewCharacter(charSet string) *Character {
 	}
 }
 
+func Char(charSet string) *Character {
+	return NewCharacter(charSet)
+}
+
 func (c *Character) Build(ctx Context) Context {
 	ctx.Literals = append(ctx.Literals, c.charSet)
 	ctx.Rules = append(ctx.Rules, int(CharacterType))

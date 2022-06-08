@@ -14,6 +14,10 @@ func NewDeref(ptr *Rule) *Deref {
 	return &Deref{ptr}
 }
 
+func Der(ptr *Rule) *Deref {
+	return NewDeref(ptr)
+}
+
 func (d *Deref) Build(ctx Context) Context {
 	currentPos := len(ctx.Rules)
 	ctx.Rules = append(ctx.Rules, int(CallType))

@@ -92,3 +92,35 @@ func TestSimpleRuleWithCat(t *testing.T) {
 		t.Errorf("Failed to parse %s", text)
 	}
 }
+
+func TestRulesWithNames(t *testing.T) {
+	var (
+		text = "abc"
+		g    = NewGrammar()
+		r1   = NewNamedRule("One")
+		r2   = NewNamedRule("Two")
+		r3   = NewNamedRule("Three")
+	)
+
+	g.Append(
+		r1.Set(
+			Char("asd").
+				Cat(Der(r2)),
+		),
+		r2.Set(
+			Char("bnm").
+				Cat(Der(r3)),
+		),
+		r3.Set(
+			Char("xcv"),
+		),
+	)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	if !result {
+		t.Errorf("Failed to parse: %s", text)
+	}
+}

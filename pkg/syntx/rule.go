@@ -7,6 +7,7 @@ import (
 )
 
 type Rule struct {
+	Name      string
 	InnerRule Ruler
 	hasher    maphash.Hash
 }
@@ -15,6 +16,13 @@ var _ Ruler = (*Rule)(nil)
 
 func NewRule() *Rule {
 	return &Rule{
+		InnerRule: nil,
+	}
+}
+
+func NewNamedRule(name string) *Rule {
+	return &Rule{
+		Name:      name,
 		InnerRule: nil,
 	}
 }
@@ -40,6 +48,7 @@ func (r *Rule) Build(ctx Context) Context {
 
 	ruleStartPos := len(ctx.Rules)
 	ctx.RuleJumpTable[r.hash()] = ruleStartPos
+	ctx.RuleNameTable[ruleStartPos] = r.Name
 
 	ctx = r.InnerRule.Build(ctx)
 	ctx.Rules = append(ctx.Rules, int(ReturnType))

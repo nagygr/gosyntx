@@ -1,4 +1,4 @@
-.phony: fmt all lib tst cov vet lnt
+.phony: fmt all lib tst cov vet lnt tsv
 
 build_lib = build
 
@@ -13,7 +13,7 @@ lib: fmt
 tst: fmt
 	go test -coverprofile=coverage.out ./pkg/...
 
-cov: test
+cov: tst
 	go tool cover -html=coverage.out
 
 
@@ -22,3 +22,6 @@ vet: all
 
 lnt: fmt
 	golangci-lint run -v --timeout 5m
+
+tsv: fmt
+	go test -v ./pkg/...

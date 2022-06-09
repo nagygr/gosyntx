@@ -61,14 +61,14 @@ func (ctx Context) String() string {
 
 	fmt.Fprintf(&b, "AST:\n")
 
-	printAst(&b, 1, ctx.CurrentNode.data[0])
+	printAst(&b, 1, ctx.RootNode)
 
 	return b.String()
 }
 
 func printAst(b *strings.Builder, tabs int, node *AstNode) {
 	printTabs(b, tabs)
-	fmt.Fprintf(b, "Name: %s\n", node.Name)
+	fmt.Fprintf(b, "Name: %s (%p)\n", node.Name, node)
 
 	printTabs(b, tabs)
 	fmt.Fprintf(b, "Range: [%d, %d]\n", node.CoveredRange.From, node.CoveredRange.To)

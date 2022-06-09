@@ -50,13 +50,6 @@ func (g *Grammar) Run(text string) bool {
 	if found {
 		if name != "" {
 			newNode := NewAstNode(name, Range{0, 0})
-			top, ok := g.Ctx.CurrentNode.Top()
-
-			if !ok {
-				log.Panic("No AstNode is stack of nodes when dereferencing rule.")
-			}
-
-			top.AddChild(newNode)
 			g.Ctx.CurrentNode.Push(newNode)
 		}
 		g.Ctx.CurrentRule.Push(name)
@@ -106,15 +99,27 @@ func (g *Grammar) Run(text string) bool {
 				log.Panic("No name in stack of RuleNames when returning from rule")
 			}
 
+			var topNode *AstNode
 			if top != "" {
-				top, ok := g.Ctx.CurrentNode.Top()
+				topNode, ok = g.Ctx.CurrentNode.Top()
 
 				if !ok {
 					log.Panic("No AstNode in stack of nodes when returning from rule")
 				}
 
-				top.CoveredRange = Range{startPos, textIndex}
+				topNode.CoveredRange = Range{startPos, textIndex}
 				g.Ctx.CurrentNode.Pop()
+
+				if parseOk {
+					oldTop, ok := g.Ctx.CurrentNode.Top()
+
+					if !ok {
+						log.Panic("No AstNode as parent when returning from rule")
+					}
+
+					fmt.Printf("Adding tree node: %s to %s\n", topNode.Name, oldTop.Name)
+					oldTop.AddChild(topNode)
+				}
 			}
 
 			g.Ctx.CurrentRule.Pop()
@@ -141,14 +146,6 @@ func (g *Grammar) Run(text string) bool {
 
 			if ruleName != "" {
 				newNode := NewAstNode(ruleName, Range{0, 0})
-				top, ok := g.Ctx.CurrentNode.Top()
-
-				if !ok {
-					log.Panic("No AstNode is stack of nodes when dereferencing rule.")
-				}
-
-				fmt.Printf("ADDING TREE NODE: %s to %s\n", ruleName, top.Name)
-				top.AddChild(newNode)
 				g.Ctx.CurrentNode.Push(newNode)
 			}
 		}

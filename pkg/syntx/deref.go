@@ -38,3 +38,7 @@ func (d *Deref) Build(ctx Context) Context {
 func (d *Deref) Cat(right Ruler) Ruler {
 	return NewConcatenation(d, right)
 }
+
+func (d *Deref) Or(right Ruler) Ruler {
+	return NewAlternation(d, right)
+}

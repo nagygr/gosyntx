@@ -61,3 +61,7 @@ func (r *Rule) Build(ctx Context) Context {
 func (r *Rule) Cat(right Ruler) Ruler {
 	return NewConcatenation(r, right)
 }
+
+func (r *Rule) Or(right Ruler) Ruler {
+	return NewAlternation(r, right)
+}

@@ -20,6 +20,7 @@ type Context struct {
 	RootNode      *AstNode
 	CurrentNode   *Stack[*AstNode]
 	CurrentRule   *Stack[string]
+	TextPosStack  *Stack[int]
 	FillTable     []RulePosition
 }
 
@@ -32,6 +33,7 @@ func NewContext() Context {
 		RootNode:      NewAstNode("<root>", Range{0, 0}),
 		CurrentNode:   NewStack[*AstNode](),
 		CurrentRule:   NewStack[string](),
+		TextPosStack:  NewStack[int](),
 	}
 
 	ctx.CurrentNode.Push(ctx.RootNode)
@@ -50,8 +52,8 @@ func (ctx Context) String() string {
 		fmt.Fprintf(&b, "\t\t%3d: %3d", i, v)
 
 		if i == nextCommandIndex && 0 <= v && v < len(CommandNames) {
-			fmt.Fprintf(&b, " (%s)", CommandNames[v])
-			nextCommandIndex += ArgNums[v] + 1
+			fmt.Fprintf(&b, " (%s)", CommandNames[RulerType(v)])
+			nextCommandIndex += ArgNums[RulerType(v)] + 1
 		}
 
 		fmt.Fprintf(&b, "\n")

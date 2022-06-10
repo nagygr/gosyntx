@@ -56,7 +56,7 @@ func (g *Grammar) Run(text string) bool {
 	}
 
 	for !endReached && ruleIndex < len(g.Ctx.Rules) {
-		fmt.Printf("Executing: %s @ %d\n", CommandNames[g.Ctx.Rules[ruleIndex]], ruleIndex)
+		fmt.Printf("Executing: %s @ %d\n", CommandNames[RulerType(g.Ctx.Rules[ruleIndex])], ruleIndex)
 		switch RulerType(g.Ctx.Rules[ruleIndex]) {
 		case CharacterType:
 			var (
@@ -148,6 +148,23 @@ func (g *Grammar) Run(text string) bool {
 				newNode := NewAstNode(ruleName, Range{0, 0})
 				g.Ctx.CurrentNode.Push(newNode)
 			}
+
+		case PushTextPosType:
+			fmt.Printf("Pushing text pos: %d\n", textIndex)
+			g.Ctx.TextPosStack.Push(textIndex)
+			ruleIndex++
+
+		case PopTextPosType:
+			fmt.Printf("Popping text pos at: %d\n", textIndex)
+			value, ok := g.Ctx.TextPosStack.Pop()
+
+			if !ok {
+				log.Panic("No text pos to pop")
+			}
+
+			fmt.Printf("\tPopped text pos: %d\n", value)
+			textIndex = value
+			ruleIndex++
 		}
 
 		fmt.Printf(

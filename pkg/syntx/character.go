@@ -27,3 +27,7 @@ func (c *Character) Build(ctx Context) Context {
 func (c *Character) Cat(right Ruler) Ruler {
 	return NewConcatenation(c, right)
 }
+
+func (c *Character) Or(right Ruler) Ruler {
+	return NewAlternation(c, right)
+}

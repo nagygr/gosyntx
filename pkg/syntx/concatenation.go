@@ -30,3 +30,7 @@ func (c *Concatenation) Build(ctx Context) Context {
 func (c *Concatenation) Cat(right Ruler) Ruler {
 	return NewConcatenation(c, right)
 }
+
+func (c *Concatenation) Or(right Ruler) Ruler {
+	return NewAlternation(c, right)
+}

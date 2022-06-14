@@ -2,6 +2,8 @@ package syntx
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -84,4 +86,66 @@ func printTabs(b *strings.Builder, tabs int) {
 	for i := 0; i < tabs; i++ {
 		fmt.Fprintf(b, "\t")
 	}
+}
+
+func Unmarshal[T any](ast *AstNode, text string) (any, error) {
+	dataType := reflect.TypeOf((*T)(nil)).Elem()
+
+	instance := reflect.New(dataType)
+
+	return unmarshalHelper(ast, instance, text)
+}
+
+func unmarshalHelper(ast *AstNode, data reflect.Value, text string) (any, error) {
+	dataValue := reflect.Indirect(data)
+
+	for _, child := range ast.Children {
+		fieldName := child.Name
+		fieldText := string(text[child.CoveredRange.From:child.CoveredRange.To])
+
+		fmt.Printf("Looking for field name: %s\n", fieldName)
+		var field reflect.Value = dataValue.FieldByName(fieldName)
+
+		fmt.Printf("[Field] Type: \"%s\" (Kind: %s) Value: \"%v\" Valid: %t\n", field.Type(), field.Kind(), field, field.IsValid())
+
+		switch field.Kind() {
+		case reflect.Int:
+			if value, err := strconv.ParseInt(fieldText, 10, 32); err != nil {
+				return nil, err
+			} else {
+				fmt.Printf("Setting field to %d\n", value)
+				field.SetInt(value)
+			}
+		case reflect.String:
+			fmt.Printf("Setting field to %s\n", fieldText)
+			field.SetString(fieldText)
+		case reflect.Pointer:
+			fmt.Printf("Pointer field: %s\n", field.Type())
+			newInstance := reflect.New(field.Type().Elem())
+
+			fmt.Printf(
+				"New instance: %v %v %v %v\n",
+				newInstance, newInstance.Elem(), newInstance.Pointer(), newInstance.UnsafePointer(),
+			)
+			field.Set(newInstance)
+
+			if _, err := unmarshalHelper(child, newInstance, text); err != nil {
+				return nil, fmt.Errorf("Error getting child's fields")
+			}
+		case reflect.Slice:
+			fmt.Printf("Slice field: %s\n", field.Type())
+			fmt.Printf("Slice's element type: %s\n", field.Type().Elem())
+			elementType := field.Type().Elem()
+
+			// Here we're expecting the slice to contain pointers to structs
+			newInstance := reflect.New(elementType.Elem())
+			field.Set(reflect.Append(field, newInstance))
+
+			if _, err := unmarshalHelper(child, newInstance, text); err != nil {
+				return nil, fmt.Errorf("Error getting child's fields")
+			}
+		}
+	}
+
+	return dataValue.Interface(), nil
 }

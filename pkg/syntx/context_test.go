@@ -110,4 +110,52 @@ func TestUnmarshallingFailure(t *testing.T) {
 	if result {
 		t.Fatalf("Expected to fail to parse %s", text)
 	}
+
+	errorMessage := "A Character rule failed while looking for a character in \"bnm\" at position 2"
+
+	if actualErrorMsg := GetErrorMessage(g.Ctx.Error); actualErrorMsg != errorMessage {
+		t.Fatalf(
+			"Expected this error message: \"%s\", got this one: \"%s\"",
+			errorMessage, actualErrorMsg,
+		)
+	}
+
+}
+
+func TestUnmarshallingFailureInFront(t *testing.T) {
+	var (
+		text = "w2m"
+		g    = NewGrammar()
+		r0   = NewRule()
+		r1   = NewNamedRule("CharField")
+		r2   = NewNamedRule("IntField")
+		r3   = NewNamedRule("InnerRule")
+		r4   = NewNamedRule("DataField")
+	)
+
+	g.Append(
+		r0.Set(
+			Der(r1).Cat(Der(r2)).Cat(Der(r3)),
+		),
+		r1.Set(
+			Char("asd"),
+		),
+		r2.Set(
+			Char("0123456789"),
+		),
+		r3.Set(
+			Der(r4),
+		),
+		r4.Set(
+			Char("bnm"),
+		),
+	)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	if result {
+		t.Fatalf("Expected to fail to parse %s", text)
+	}
 }

@@ -101,11 +101,19 @@ func printTabs(b *strings.Builder, tabs int) {
 }
 
 func printError(b *strings.Builder, parseError ParseError) {
-	if parseError.Position > 0 {
-		fmt.Fprintf(
-			b, "A %s rule failed while %s at position %d",
+	fmt.Fprintf(
+		b, GetErrorMessage(parseError),
+	)
+}
+
+func GetErrorMessage(parseError ParseError) string {
+	if parseError.Position >= 0 {
+		return fmt.Sprintf(
+			"A %s rule failed while %s at position %d",
 			parseError.RuleName, parseError.Description, parseError.Position,
 		)
+	} else {
+		return ""
 	}
 }
 

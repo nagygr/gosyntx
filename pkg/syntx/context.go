@@ -12,6 +12,12 @@ type RulePosition struct {
 	position int
 }
 
+type ParseError struct {
+	RuleName    string
+	Position    int
+	Description string
+}
+
 type Context struct {
 	Rules         []int
 	Literals      []string
@@ -23,6 +29,7 @@ type Context struct {
 	CurrentNode   *Stack[*AstNode]
 	CurrentRule   *Stack[string]
 	TextPosStack  *Stack[int]
+	Error         ParseError
 	FillTable     []RulePosition
 }
 
@@ -36,6 +43,7 @@ func NewContext() Context {
 		CurrentNode:   NewStack[*AstNode](),
 		CurrentRule:   NewStack[string](),
 		TextPosStack:  NewStack[int](),
+		Error:         ParseError{"", -1, ""},
 	}
 
 	ctx.CurrentNode.Push(ctx.RootNode)
@@ -67,6 +75,10 @@ func (ctx Context) String() string {
 
 	printAst(&b, 1, ctx.RootNode)
 
+	fmt.Fprintf(&b, "\n")
+	printError(&b, ctx.Error)
+	fmt.Fprintf(&b, "\n")
+
 	return b.String()
 }
 
@@ -85,6 +97,15 @@ func printAst(b *strings.Builder, tabs int, node *AstNode) {
 func printTabs(b *strings.Builder, tabs int) {
 	for i := 0; i < tabs; i++ {
 		fmt.Fprintf(b, "\t")
+	}
+}
+
+func printError(b *strings.Builder, parseError ParseError) {
+	if parseError.Position > 0 {
+		fmt.Fprintf(
+			b, "A %s rule failed while %s at position %d",
+			parseError.RuleName, parseError.Description, parseError.Position,
+		)
 	}
 }
 

@@ -66,6 +66,17 @@ func (g *Grammar) Run(text string) bool {
 
 			if parseOk = textIndex < len(text) && strings.ContainsAny(string(text[textIndex]), literal); parseOk {
 				textIndex++
+			} else {
+				if textIndex > g.Ctx.Error.Position {
+					g.Ctx.Error = ParseError{
+						RuleName: "Character",
+						Position: textIndex,
+						Description: fmt.Sprintf(
+							"looking for a character in \"%s\"",
+							literal,
+						),
+					}
+				}
 			}
 
 			ruleIndex += 2

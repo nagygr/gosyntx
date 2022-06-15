@@ -73,3 +73,41 @@ func TestUnmarshalling(t *testing.T) {
 		fmt.Printf("%s\n", &data)
 	}
 }
+
+func TestUnmarshallingFailure(t *testing.T) {
+	var (
+		text = "a2e"
+		g    = NewGrammar()
+		r0   = NewRule()
+		r1   = NewNamedRule("CharField")
+		r2   = NewNamedRule("IntField")
+		r3   = NewNamedRule("InnerRule")
+		r4   = NewNamedRule("DataField")
+	)
+
+	g.Append(
+		r0.Set(
+			Der(r1).Cat(Der(r2)).Cat(Der(r3)),
+		),
+		r1.Set(
+			Char("asd"),
+		),
+		r2.Set(
+			Char("0123456789"),
+		),
+		r3.Set(
+			Der(r4),
+		),
+		r4.Set(
+			Char("bnm"),
+		),
+	)
+
+	result := g.Run(text)
+
+	fmt.Printf("%s\n", g.Ctx)
+
+	if result {
+		t.Fatalf("Expected to fail to parse %s", text)
+	}
+}
